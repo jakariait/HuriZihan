@@ -481,15 +481,21 @@ const AllOrders = ({ title, status = '' }) => {
         headers: { Authorization: `Bearer ${token}` },
         data: { orderIds: selectedOrders },
       });
-      if (response.data.success) {
+      const { success, totalDeleted, totalErrors, message } = response.data;
+      if (success) {
         toast.success(
-          `${response.data.totalDeleted} orders deleted successfully`,
+          `${totalDeleted} order(s) deleted successfully`,
         );
         setSelectedOrders([]);
-        fetchOrders();
+      } else if (totalDeleted > 0 && totalErrors > 0) {
+        toast.warning(
+          `${totalDeleted} order(s) deleted, ${totalErrors} failed. ${message}`,
+        );
+        setSelectedOrders([]);
       } else {
-        toast.error(response.data.message || 'Failed to delete orders');
+        toast.error(message || 'Failed to delete orders');
       }
+      fetchOrders();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Error deleting orders');
     } finally {

@@ -284,9 +284,17 @@ const bulkDeleteOrders = async (req, res) => {
   }
   try {
     const result = await orderService.bulkDeleteOrders(orderIds);
-    res.status(200).json({
-      success: true,
-      message: `${result.totalDeleted} orders deleted successfully.`,
+    const statusCode = result.totalErrors > 0 ? 207 : 200;
+    res.status(statusCode).json({
+      success: result.totalErrors === 0,
+      message:
+        result.totalDeleted > 0
+          ? `${result.totalDeleted} order(s) deleted successfully${
+              result.totalErrors > 0
+                ? `, ${result.totalErrors} failed`
+                : ''
+            }.`
+          : 'No orders were deleted. Please try again.',
       ...result,
     });
   } catch (error) {

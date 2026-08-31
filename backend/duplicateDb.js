@@ -1,12 +1,12 @@
 const { MongoClient } = require('mongodb');
 
 // Source and Target connection URIs
-const sourceURI = '';
-const targetURI = '';
+const sourceURI = 'mongodb://adminUser:G7p!9vR2%40xQ1_sL8@72.61.124.159:27017/admin';
+const targetURI = 'mongodb://adminUser:G7p!9vR2%40xQ1_sL8@72.61.114.231:27017/admin';
 
 // Names of source and target databases
 const sourceDBName = 'ClothingEcommerce';
-const targetDBName = 'Zarif';
+const targetDBName = 'HuriZihan';
 
 async function duplicateDatabase() {
   const sourceClient = new MongoClient(sourceURI);
