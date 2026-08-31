@@ -50,6 +50,10 @@ const FAQSection = () => {
             />
           ))}
         </div>
+      ) : faqs.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="text-gray-500 text-lg">No FAQs available at the moment.</p>
+        </div>
       ) : (
         <div className="max-w-3xl mx-auto space-y-3">
           {faqs.map((faq) => {

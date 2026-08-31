@@ -189,7 +189,7 @@ const Footer = () => {
                 'text-center pb-5 pt-5 flex flex-col md:flex-row items-center justify-center gap-3'
               }
             >
-              <p>{GeneralInfoList?.FooterCopyright}</p>
+              <p>&copy; {new Date().getFullYear()} {GeneralInfoList?.CompanyName}. All Rights Reserved.</p>
               <p>
                 Design and Developed by{' '}
                 <a

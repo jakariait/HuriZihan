@@ -21,12 +21,6 @@ export default function GeneralInfoForm() {
     ShortDescription: '',
     CompanyAddress: '',
     GoogleMapLink: '',
-    PlayStoreLink: '',
-    AppStoreLink: '',
-    TradeLicense: '',
-    TINNumber: '',
-    BINNumber: '',
-    FooterCopyright: '',
   });
 
   const [files, setFiles] = useState({
@@ -299,48 +293,10 @@ export default function GeneralInfoForm() {
               name="CompanyAddress"
               placeholder="Full company address"
             />
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <TextField
-                label="Google Map Link"
-                name="GoogleMapLink"
-                placeholder="Google Maps embed URL"
-              />
-              <TextField
-                label="Play Store Link"
-                name="PlayStoreLink"
-                placeholder="Google Play Store URL"
-              />
-              <TextField
-                label="App Store Link"
-                name="AppStoreLink"
-                placeholder="Apple App Store URL"
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Legal & Compliance</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <TextField label="Trade License" name="TradeLicense" />
-              <TextField label="TIN Number" name="TINNumber" />
-              <TextField label="BIN Number" name="BINNumber" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Footer</CardTitle>
-          </CardHeader>
-          <CardContent>
             <TextField
-              label="Footer Copyright"
-              name="FooterCopyright"
-              placeholder="© 2024 Your Company. All rights reserved."
+              label="Google Map Link"
+              name="GoogleMapLink"
+              placeholder="Google Maps embed URL"
             />
           </CardContent>
         </Card>
