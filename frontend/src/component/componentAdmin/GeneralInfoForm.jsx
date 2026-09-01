@@ -18,6 +18,7 @@ export default function GeneralInfoForm() {
     CompanyName: '',
     PhoneNumber: [''],
     CompanyEmail: [''],
+    WhatsappNumber: '',
     ShortDescription: '',
     CompanyAddress: '',
     GoogleMapLink: '',
@@ -286,6 +287,11 @@ export default function GeneralInfoForm() {
                 label="Short Description"
                 name="ShortDescription"
                 placeholder="Brief description of your company"
+              />
+              <TextField
+                label="WhatsApp Number"
+                name="WhatsappNumber"
+                placeholder="+1234567890"
               />
             </div>
             <TextField

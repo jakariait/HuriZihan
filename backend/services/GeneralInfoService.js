@@ -59,6 +59,7 @@ const updateGeneralInfo = async (data, files) => {
       generalInfo.SecondaryLogo = SecondaryLogo;
       generalInfo.Favicon = Favicon;
       generalInfo.CompanyName = data.CompanyName;
+      generalInfo.WhatsappNumber = data.WhatsappNumber;
       generalInfo.PhoneNumber = Array.isArray(data.PhoneNumber)
         ? data.PhoneNumber
         : data.PhoneNumber?.split(',') || [];
