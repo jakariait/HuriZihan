@@ -184,6 +184,7 @@ const Footer = () => {
                 <NewsletterForm />
               </div>
             </div>
+            <div className="border-t border-dotted border-gray-400 mx-6"></div>
             <div
               className={
                 'text-center pb-5 pt-5 flex flex-col md:flex-row items-center justify-center gap-3'
