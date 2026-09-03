@@ -7,15 +7,27 @@ import { FiMinus } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import useCartStore from '../../store/useCartStore.js';
 
-const BuyNowButton = ({ product, isAddToCart = false }) => {
+const BuyNowButton = ({
+  product,
+  isAddToCart = false,
+  isBuyNow = false,
+  showAddToCart = false,
+  showBuyNow = false,
+}) => {
   const [open, setOpen] = useState(false);
+  const [actionType, setActionType] = useState('buynow');
   const [quantity, setQuantity] = useState(1);
   const [selectedVariant, setSelectedVariant] = useState(null);
   const { addToCart } = useCartStore();
   const navigate = useNavigate();
   const MAX_QUANTITY = 5;
 
-  const handleOpen = () => {
+  // Legacy support: if showAddToCart/showBuyNow not provided, derive from isAddToCart
+  const showAddToCartBtn = showAddToCart || isAddToCart;
+  const showBuyNowBtn = showBuyNow || (!isAddToCart && !showAddToCart); // default to buynow if nothing specified
+
+  const handleOpen = (type = 'buynow') => {
+    setActionType(type);
     setSelectedVariant(null);
     setQuantity(1);
     setOpen(true);
@@ -58,7 +70,7 @@ const BuyNowButton = ({ product, isAddToCart = false }) => {
 
   const handleConfirm = () => {
     addToCart(product, quantity, selectedVariant);
-    if (isAddToCart) {
+    if (actionType === 'addtocart') {
       handleClose();
     } else {
       navigate('/checkout');
@@ -72,20 +84,24 @@ const BuyNowButton = ({ product, isAddToCart = false }) => {
 
   return (
     <>
-      <button
-        onClick={handleOpen}
-        className="primaryBgColor accentTextColor py-2  px-1 text-sm md:text-md  rounded cursor-pointer w-full"
-      >
-        <div className="flex items-center justify-center gap-4">
-          {/*{isAddToCart ? <FaCartArrowDown /> : <FaCreditCard />}*/}
-          <span>{isAddToCart ? 'Add to Cart' : 'Buy Now'}</span>
-          {product.freeShipping && (
-            <span className="border-l border-white/30 pl-3 ml-1">
-              Free Delivery
-            </span>
-          )}
-        </div>
-      </button>
+      <div className="flex  gap-1 md:gap-2 w-full">
+        {showAddToCartBtn && (
+          <button
+            onClick={() => handleOpen('addtocart')}
+            className="primaryBgColor accentTextColor py-2 px-1 text-sm md:text-md rounded cursor-pointer flex-1"
+          >
+            <span>Add to Cart</span>
+          </button>
+        )}
+        {showBuyNowBtn && (
+          <button
+            onClick={() => handleOpen('buynow')}
+            className="primaryBgColor accentTextColor py-2 px-1 text-sm md:text-md rounded cursor-pointer flex-1"
+          >
+            <span>Buy Now</span>
+          </button>
+        )}
+      </div>
 
       <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
         <DialogContent className="sm:max-w-sm">
@@ -208,7 +224,9 @@ const BuyNowButton = ({ product, isAddToCart = false }) => {
               }
               className="primaryBgColor"
             >
-              {isAddToCart ? 'Add to Cart' : 'Proceed to Checkout'}
+              {actionType === 'addtocart'
+                ? 'Add to Cart'
+                : 'Proceed to Checkout'}
             </Button>
           </DialogActions>
         </DialogContent>

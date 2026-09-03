@@ -142,7 +142,11 @@ const ProductList = ({ products }) => {
                 </button>
               </div>
               <div className={'pt-5'}>
-                <BuyNowButton product={product} isAddToCart={false} />
+                <BuyNowButton
+                  product={product}
+                  isAddToCart={true}
+                  showBuyNow={true}
+                />
               </div>
             </div>
           ))}
