@@ -39,6 +39,8 @@ const pathaoController = require('../controllers/pathaoController');
 const pathaoConfigController = require('../controllers/pathaoConfigController');
 const productOptionController = require('../controllers/ProductOptionController');
 
+const { getMetaCatalog } = require('../controllers/metaCatalogController');
+
 const { handleCourierCheck, getDynamicCourierStatus } = require('../controllers/courierController');
 const cacheMiddleware = require('../middlewares/redisCacheMiddleware');
 const {
@@ -805,5 +807,8 @@ router.delete(
   checkPermission('product_size'),
   productOptionController.deleteProductOption
 );
+
+// Routes for meta catalog
+router.get('/catalog', getMetaCatalog);
 
 module.exports = router;
