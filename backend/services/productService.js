@@ -27,6 +27,7 @@ const deleteOldFiles = (filenames) => {
 // Create a new product
 const createProduct = async (data) => {
   try {
+    delete data.hasVariant;
     const product = new ProductModel(data); // Save product with image names
     await product.save();
     return product;
@@ -48,7 +49,6 @@ const getProducts = async () => {
         { path: 'subCategory', select: '-createdAt -updatedAt' },
         { path: 'childCategory', select: '-createdAt -updatedAt' },
         { path: 'flags', select: '-createdAt -updatedAt' },
-        { path: 'variants', select: '-createdAt -updatedAt' },
         { path: 'variants.attributes.option', select: '-createdAt -updatedAt' },
       ]);
 
@@ -68,7 +68,6 @@ const getProductById = async (productId) => {
       { path: 'subCategory', select: '-createdAt -updatedAt' },
       { path: 'childCategory', select: '-createdAt -updatedAt' },
       { path: 'flags', select: '-createdAt -updatedAt' },
-      { path: 'variants', select: '-createdAt -updatedAt' },
       { path: 'variants.attributes.option', select: '-createdAt -updatedAt' },
     ]);
     if (!product) throw new Error('Product not found');
@@ -87,7 +86,6 @@ const getProductBySlug = async (slug) => {
       { path: 'subCategory', select: '-createdAt -updatedAt' },
       { path: 'childCategory', select: '-createdAt -updatedAt' },
       { path: 'flags', select: '-createdAt -updatedAt' },
-      { path: 'variants', select: '-createdAt -updatedAt' },
       { path: 'variants.attributes.option', select: '-createdAt -updatedAt' },
     ]);
 
@@ -468,7 +466,14 @@ const updateProduct = async (productId, updatedData, files) => {
     // --- IMAGE HANDLING END ---
 
     // 2. Secure variant updates
-    if (updatedData.variants && Array.isArray(updatedData.variants)) {
+    if (updatedData.hasVariant === 'false' || updatedData.hasVariant === false) {
+      // User switched to no-variant mode — clear all variants
+      updatedData.variants = [];
+    } else if (
+      updatedData.variants &&
+      Array.isArray(updatedData.variants) &&
+      updatedData.variants.length > 0
+    ) {
       updatedData.variants = updatedData.variants.map((variantData, index) => {
         // Validate attributes
         if (
@@ -533,9 +538,13 @@ const updateProduct = async (productId, updatedData, files) => {
           discount: variantData.discount === '' ? null : Number(variantData.discount) || null,
         };
       });
+    } else {
+      // No variants provided — clear existing variants
+      updatedData.variants = [];
     }
 
     // Handle other updates and save...
+    delete updatedData.hasVariant;
     Object.assign(product, updatedData);
 
     await product.save();

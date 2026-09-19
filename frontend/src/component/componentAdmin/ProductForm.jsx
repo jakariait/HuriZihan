@@ -155,7 +155,7 @@ const ProductForm = ({ isEdit: isEditMode }) => {
           product.variants.map((v) => ({
             attributes: v.attributes
               ? v.attributes.map((attr) => ({
-                  option: attr.option ? attr.option._id : '',
+                  option: attr.option?._id || attr.option || '',
                   value: attr.value || '',
                 }))
               : [],
@@ -222,23 +222,14 @@ const ProductForm = ({ isEdit: isEditMode }) => {
   };
 
   const handleAddAttribute = (variantIndex) => {
-    const updatedVariants = variants.map((v, vi) =>
-      vi === variantIndex
-        ? { ...v, attributes: [...v.attributes, { option: '', value: '' }] }
-        : { ...v },
-    );
+    const updatedVariants = [...variants];
+    updatedVariants[variantIndex].attributes.push({ option: '', value: '' });
     setVariants(updatedVariants);
   };
 
   const handleRemoveAttribute = (variantIndex, attributeIndex) => {
-    const updatedVariants = variants.map((v, vi) =>
-      vi === variantIndex
-        ? {
-            ...v,
-            attributes: v.attributes.filter((_, ai) => ai !== attributeIndex),
-          }
-        : { ...v },
-    );
+    const updatedVariants = [...variants];
+    updatedVariants[variantIndex].attributes.splice(attributeIndex, 1);
     setVariants(updatedVariants);
   };
 
@@ -486,6 +477,7 @@ const ProductForm = ({ isEdit: isEditMode }) => {
     formData.append('purchasePrice', purchasePrice);
     formData.append('isActive', isActive);
     formData.append('freeShipping', freeShipping);
+    formData.append('hasVariant', hasVariant);
 
     if (selectedCategory) formData.append('category', selectedCategory);
     if (selectedSubCategory)
@@ -1229,90 +1221,47 @@ const ProductForm = ({ isEdit: isEditMode }) => {
                         <TableRow key={index}>
                           <TableCell>
                             <div className="space-y-2">
-                              {variant.attributes.map((attr, attrIndex) => {
-                                const selectedOptionIds = variant.attributes
-                                  .filter((a, ai) => ai !== attrIndex && a.option)
-                                  .map((a) => a.option);
-                                return (
+                              {variant.attributes.map((attr, attrIndex) => (
                                 <div
                                   key={attrIndex}
                                   className="flex items-center gap-1.5"
                                 >
-                                   <Select
-                                     value={attr.option}
-                                     onValueChange={(value) => {
-                                       const updatedVariants = variants.map(
-                                         (v, vi) => {
-                                           if (vi === index) {
-                                             return {
-                                               ...v,
-                                               attributes: v.attributes.map(
-                                                 (a, ai) => {
-                                                   if (ai === attrIndex) {
-                                                     return {
-                                                       ...a,
-                                                       option: value,
-                                                       value: '',
-                                                     };
-                                                   }
-                                                   return { ...a };
-                                                 },
-                                               ),
-                                             };
-                                           }
-                                           return { ...v };
-                                         },
-                                       );
-                                       setVariants(updatedVariants);
-                                     }}
-                                   >
-                                     <SelectTrigger className="w-[120px]">
-                                       <SelectValue placeholder="Option" />
-                                     </SelectTrigger>
-                                     <SelectContent>
-                                       {productOptions
-                                         .filter(
-                                           (option) =>
-                                             !selectedOptionIds.includes(
-                                               option._id,
-                                             ) || option._id === attr.option,
-                                         )
-                                         .map((option) => (
-                                         <SelectItem
-                                           key={option._id}
-                                           value={option._id}
-                                         >
-                                           {option.name}
-                                         </SelectItem>
-                                       ))}
-                                     </SelectContent>
-                                   </Select>
-                                   <Select
-                                     value={attr.value}
-                                     onValueChange={(value) => {
-                                       const updatedVariants = variants.map(
-                                         (v, vi) => {
-                                           if (vi === index) {
-                                             return {
-                                               ...v,
-                                               attributes: v.attributes.map(
-                                                 (a, ai) => {
-                                                   if (ai === attrIndex) {
-                                                     return {
-                                                       ...a,
-                                                       value: value,
-                                                     };
-                                                   }
-                                                   return { ...a };
-                                                 },
-                                               ),
-                                             };
-                                           }
-                                           return { ...v };
-                                         },
-                                       );
-                                       setVariants(updatedVariants);
-                                     }}
+                                  <Select
+                                    value={attr.option}
+                                    onValueChange={(value) => {
+                                      const updatedVariants = [...variants];
+                                      updatedVariants[index].attributes[
+                                        attrIndex
+                                      ].option = value;
+                                      updatedVariants[index].attributes[
+                                        attrIndex
+                                      ].value = '';
+                                      setVariants(updatedVariants);
+                                    }}
+                                  >
+                                    <SelectTrigger className="w-[120px]">
+                                      <SelectValue placeholder="Option" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {productOptions.map((option) => (
+                                        <SelectItem
+                                          key={option._id}
+                                          value={option._id}
+                                        >
+                                          {option.name}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                  <Select
+                                    value={attr.value}
+                                    onValueChange={(value) => {
+                                      const updatedVariants = [...variants];
+                                      updatedVariants[index].attributes[
+                                        attrIndex
+                                      ].value = value;
+                                      setVariants(updatedVariants);
+                                    }}
                                     disabled={!attr.option}
                                   >
                                     <SelectTrigger className="w-[120px]">
@@ -1341,8 +1290,7 @@ const ProductForm = ({ isEdit: isEditMode }) => {
                                     <Trash2 className="size-3.5" />
                                   </Button>
                                 </div>
-                                );
-                              })}
+                              ))}
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -1362,12 +1310,8 @@ const ProductForm = ({ isEdit: isEditMode }) => {
                               onChange={(e) => {
                                 const value = e.target.value;
                                 if (value >= 0 || value === '') {
-                                  const updatedVariants = variants.map(
-                                    (v, vi) =>
-                                      vi === index
-                                        ? { ...v, stock: value }
-                                        : { ...v },
-                                  );
+                                  const updatedVariants = [...variants];
+                                  updatedVariants[index].stock = value;
                                   setVariants(updatedVariants);
                                 }
                               }}
@@ -1382,12 +1326,8 @@ const ProductForm = ({ isEdit: isEditMode }) => {
                               onChange={(e) => {
                                 const value = e.target.value;
                                 if (value >= 0 || value === '') {
-                                  const updatedVariants = variants.map(
-                                    (v, vi) =>
-                                      vi === index
-                                        ? { ...v, price: value }
-                                        : { ...v },
-                                  );
+                                  const updatedVariants = [...variants];
+                                  updatedVariants[index].price = value;
                                   setVariants(updatedVariants);
                                 }
                               }}
@@ -1401,12 +1341,8 @@ const ProductForm = ({ isEdit: isEditMode }) => {
                               onChange={(e) => {
                                 const value = e.target.value;
                                 if (value >= 0 || value === '') {
-                                  const updatedVariants = variants.map(
-                                    (v, vi) =>
-                                      vi === index
-                                        ? { ...v, discount: value }
-                                        : { ...v },
-                                  );
+                                  const updatedVariants = [...variants];
+                                  updatedVariants[index].discount = value;
                                   setVariants(updatedVariants);
                                 }
                               }}
