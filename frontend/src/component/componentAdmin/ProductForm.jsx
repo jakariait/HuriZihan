@@ -1226,33 +1226,47 @@ const ProductForm = ({ isEdit: isEditMode }) => {
                                   key={attrIndex}
                                   className="flex items-center gap-1.5"
                                 >
-                                  <Select
-                                    value={attr.option}
-                                    onValueChange={(value) => {
-                                      const updatedVariants = [...variants];
-                                      updatedVariants[index].attributes[
-                                        attrIndex
-                                      ].option = value;
-                                      updatedVariants[index].attributes[
-                                        attrIndex
-                                      ].value = '';
-                                      setVariants(updatedVariants);
-                                    }}
-                                  >
-                                    <SelectTrigger className="w-[120px]">
-                                      <SelectValue placeholder="Option" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {productOptions.map((option) => (
-                                        <SelectItem
-                                          key={option._id}
-                                          value={option._id}
-                                        >
-                                          {option.name}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
+                                  {(() => {
+                                    const usedOptionIds = variant.attributes
+                                      .filter(
+                                        (a, i) => i !== attrIndex && a.option,
+                                      )
+                                      .map((a) => a.option);
+                                    return (
+                                      <Select
+                                        value={attr.option}
+                                        onValueChange={(value) => {
+                                          const updatedVariants = [...variants];
+                                          updatedVariants[index].attributes[
+                                            attrIndex
+                                          ].option = value;
+                                          updatedVariants[index].attributes[
+                                            attrIndex
+                                          ].value = '';
+                                          setVariants(updatedVariants);
+                                        }}
+                                      >
+                                        <SelectTrigger className="w-[120px]">
+                                          <SelectValue placeholder="Option" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {productOptions.map((option) => (
+                                            <SelectItem
+                                              key={option._id}
+                                              value={option._id}
+                                              disabled={
+                                                usedOptionIds.includes(
+                                                  option._id,
+                                                ) && option._id !== attr.option
+                                              }
+                                            >
+                                              {option.name}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    );
+                                  })()}
                                   <Select
                                     value={attr.value}
                                     onValueChange={(value) => {
