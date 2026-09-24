@@ -69,6 +69,7 @@ const ProductAddToCart = ({ product }) => {
         values: option.values.map((value) => ({ value, available: true })),
       }));
       setOptions(displayedOptions);
+      setSelectedVariant(singleVariant);
       return;
     }
 
