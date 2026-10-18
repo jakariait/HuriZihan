@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, lazy } from 'react';
+import { useRef, useState, useEffect, lazy } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import useCategoryStore from '../../store/useCategoryStore.js';
 import useSubCategoryStore from '../../store/useSubCategoryStore.js';
@@ -59,7 +59,7 @@ const ProductForm = ({ isEdit: isEditMode }) => {
   const { categories } = useCategoryStore();
   const { subCategories } = useSubCategoryStore();
   const { childCategories } = useChildCategoryStore();
-  const { flags } = useFlagStore();
+  const { flags, fetchFlags } = useFlagStore();
   const { productOptions, fetchProductOptions } = useProductOptionStore();
   const apiUrl = import.meta.env.VITE_API_URL;
   const { token } = AuthAdminStore();
@@ -105,7 +105,6 @@ const ProductForm = ({ isEdit: isEditMode }) => {
 
   const [existingImages, setExistingImages] = useState([]);
   const [imagesToDelete, setImagesToDelete] = useState([]);
-  const [draggedImage, setDraggedImage] = useState(null);
   const [draggedIndex, setDraggedIndex] = useState(null);
   const [dragSource, setDragSource] = useState(null);
 
@@ -122,7 +121,18 @@ const ProductForm = ({ isEdit: isEditMode }) => {
       fetchProductBySlug(slug);
     }
     fetchProductOptions();
-  }, [isEditMode, slug, fetchProductBySlug, fetchProductOptions]);
+    // Always ensure flags are loaded so they're selectable on add & edit
+    if (flags.length === 0) {
+      fetchFlags();
+    }
+  }, [
+    isEditMode,
+    slug,
+    fetchProductBySlug,
+    fetchProductOptions,
+    fetchFlags,
+    flags.length,
+  ]);
 
   useEffect(() => {
     if (isEditMode && product) {
@@ -177,7 +187,7 @@ const ProductForm = ({ isEdit: isEditMode }) => {
         setHasVariant(false);
       }
     }
-  }, [product, isEditMode, apiUrl]);
+  }, [product, isEditMode, imageUrl]);
 
   useEffect(() => {
     if (isEditMode && product && product.category) {

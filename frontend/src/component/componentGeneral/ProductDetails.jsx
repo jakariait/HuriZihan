@@ -1,5 +1,6 @@
-import React, { useEffect, useRef, useState, lazy, Suspense } from 'react';
+import { useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
+import axios from 'axios';
 import useProductStore from '../../store/useProductStore.js';
 import GeneralInfoStore from '../../store/GeneralInfoStore.js';
 import Skeleton from 'react-loading-skeleton';
@@ -9,7 +10,7 @@ import {
   AccordionSummary,
   AccordionDetails,
 } from '@/components/ui/accordion';
-import { ChevronDown as ExpandMoreIcon } from 'lucide-react';
+import { ChevronDown as ExpandMoreIcon, Truck } from 'lucide-react';
 import ProductGallery from './ProductGallery.jsx';
 import ProductAddToCart from './ProductAddToCart.jsx';
 import ProductBreadcrumbs from './ProductBreadcrumbs.jsx';
@@ -20,6 +21,7 @@ const YouTubeEmbed = lazy(() => import('./YouTubeEmbed.jsx'));
 const RecentlyViewedProducts = lazy(
   () => import('./RecentlyViewedProducts.jsx'),
 );
+import useCartStore from '../../store/useCartStore.js';
 
 const ProductDetails = () => {
   const hasPushedRef = useRef(false);
@@ -32,6 +34,9 @@ const ProductDetails = () => {
 
   const [currentProductSlug, setCurrentProductSlug] = useState(null);
   const [recentlyViewed, setRecentlyViewed] = useState([]);
+  const [freeDeliveryAmount, setFreeDeliveryAmount] = useState(null);
+  const { cart } = useCartStore();
+  const apiUrl = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
     if (slug !== currentProductSlug) {
@@ -66,6 +71,30 @@ const ProductDetails = () => {
       : 0;
 
   const cleanHtml = (html) => sanitizeHtml(html);
+
+  const cartTotal = cart.reduce((total, item) => {
+    const price =
+      item.discountPrice > 0 ? item.discountPrice : item.originalPrice;
+    return total + price * item.quantity;
+  }, 0);
+
+  const formatAmount = (value) => Number(value).toLocaleString();
+
+  // Fetch free delivery threshold
+  useEffect(() => {
+    const fetchAmount = async () => {
+      try {
+        const res = await axios.get(`${apiUrl}/getFreeDeliveryAmount`);
+        if (res.data?.success) {
+          setFreeDeliveryAmount(res.data?.data?.value);
+        }
+      } catch (err) {
+        console.error('Failed to fetch free delivery amount:', err.message);
+      }
+    };
+
+    fetchAmount();
+  }, [apiUrl]);
 
   // Data layer for View Content
 
@@ -202,6 +231,50 @@ const ProductDetails = () => {
             </div>
             <div className="flex flex-col gap-3 md:col-span-4 lg:col-span-3 xl:col-span-4 pt-4 md:pt-0">
               <ProductAddToCart product={product} />
+
+              {/*Free Delivery Tracker*/}
+              {freeDeliveryAmount > 1 && (
+                <div className="rounded-2xl border border-[#2E7D31]/15 bg-[#F4FAF4] p-4">
+                  {cartTotal >= freeDeliveryAmount ? (
+                    <p className="flex items-center gap-2 text-sm font-semibold text-[#2E7D31]">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#2E7D31] text-white">
+                        <Truck className="size-4" aria-hidden="true" />
+                      </span>
+                      Free delivery unlocked — shipping is on us
+                    </p>
+                  ) : (
+                    <>
+                      <p className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#2E7D31]/10 text-[#2E7D31]">
+                          <Truck className="size-4" aria-hidden="true" />
+                        </span>
+                        Add{' '}
+                        <span className="font-bold text-gray-900">
+                          Tk. {formatAmount(freeDeliveryAmount - cartTotal)}
+                        </span>{' '}
+                        more to get free delivery
+                      </p>
+                      <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-[#2E7D31]/10">
+                        <div
+                          className="h-full rounded-full bg-[#2E7D31] transition-all duration-500"
+                          style={{
+                            width: `${Math.min(
+                              100,
+                              Math.round(
+                                (cartTotal / freeDeliveryAmount) * 100,
+                              ),
+                            )}%`,
+                          }}
+                        />
+                      </div>
+                      <p className="mt-1.5 text-xs text-gray-500">
+                        Subtotal: Tk. {formatAmount(cartTotal)} of Tk.{' '}
+                        {formatAmount(freeDeliveryAmount)}
+                      </p>
+                    </>
+                  )}
+                </div>
+              )}
 
               {/*Social Share Buttons*/}
               <div className="flex items-center gap-2">

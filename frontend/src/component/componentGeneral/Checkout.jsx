@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { Truck } from 'lucide-react';
 import { Snackbar } from '@/components/ui/snackbar';
 import { Alert } from '@/components/ui/alert';
 
@@ -89,7 +90,7 @@ const Checkout = () => {
     };
 
     fetchAmount();
-  }, []);
+  }, [apiUrl]);
 
   // Price Calculations
   const totalAmount = cart.reduce((total, item) => {
@@ -130,7 +131,7 @@ const Checkout = () => {
     };
 
     fetchVatAmount();
-  }, []);
+  }, [apiUrl]);
 
   // Data Layer for Initiat Checkout
 
@@ -312,6 +313,50 @@ const Checkout = () => {
                 points={rewardPointsUsed}
                 onPointsChange={handleRewardPointsChange}
               />
+            )}
+
+            {/*Free Delivery Tracker — ফ্রি ডেলিভারি ট্র্যাকার*/}
+            {freeDelivery > 1 && (
+              <div className="rounded-2xl border border-[#2E7D31]/15 bg-[#F4FAF4] p-4">
+                {hasFreeShippingProduct || totalAmount >= freeDelivery ? (
+                  <p className="flex items-center gap-2 text-base md:text-lg font-semibold text-[#2E7D31]">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#2E7D31] text-white">
+                      <Truck className="size-4" aria-hidden="true" />
+                    </span>
+                    ফ্রি ডেলিভারি অনলক হয়েছে — শিপিং খরচ আমরাই বহন করছি
+                  </p>
+                ) : (
+                  <>
+                    <p className="flex flex-col gap-1 text-base md:text-lg font-medium text-gray-700">
+                      <span className="flex items-center gap-2">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#2E7D31]/10 text-[#2E7D31]">
+                          <Truck className="size-4" aria-hidden="true" />
+                        </span>
+                        ফ্রি ডেলিভারি পেতে আর
+                      </span>
+                      <span className="pl-10 font-bold text-gray-900">
+                        Tk. {formattedTotalAmount(freeDelivery - totalAmount)}{' '}
+                        যোগ করুন
+                      </span>
+                    </p>
+                    <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-[#2E7D31]/10">
+                      <div
+                        className="h-full rounded-full bg-[#2E7D31] transition-all duration-500"
+                        style={{
+                          width: `${Math.min(
+                            100,
+                            Math.round((totalAmount / freeDelivery) * 100),
+                          )}%`,
+                        }}
+                      />
+                    </div>
+                    <p className="mt-1.5 text-xs text-gray-500">
+                      সাবটোটাল: Tk. {formattedTotalAmount(totalAmount)} / Tk.{' '}
+                      {formattedTotalAmount(freeDelivery)}
+                    </p>
+                  </>
+                )}
+              </div>
             )}
 
             {/* Final Order Summary */}

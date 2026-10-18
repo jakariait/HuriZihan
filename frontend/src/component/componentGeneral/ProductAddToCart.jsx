@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { FaPlus } from 'react-icons/fa6';
 import { FiMinus } from 'react-icons/fi';
 import { FaTruck } from 'react-icons/fa';
@@ -6,7 +6,13 @@ import { FaTruck } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
 import useCartStore from '../../store/useCartStore.js';
 import WishlistButton from './WishlistButton.jsx';
-import sanitizeHtml from '../../utils/sanitizeHtml.js';
+
+const variantMatches = (variant, selection) =>
+  Object.entries(selection).every(([name, value]) =>
+    variant?.attributes?.some(
+      (attr) => attr?.option?.name === name && attr.value === value,
+    ),
+  );
 
 const ProductAddToCart = ({ product }) => {
   const [quantity, setQuantity] = useState(1);
@@ -14,171 +20,134 @@ const ProductAddToCart = ({ product }) => {
   const { addToCart } = useCartStore();
   const navigate = useNavigate();
 
-  const [options, setOptions] = useState([]);
   const [selectedOptions, setSelectedOptions] = useState({});
-  const [selectedVariant, setSelectedVariant] = useState(null);
-  const [validationMessage, setValidationMessage] = useState(''); // New state for validation messages
+  const [validationMessage, setValidationMessage] = useState('');
 
-  // Effect 1: Initialize selectedOptions and handle single variant product auto-selection
+  // Reset selection when product changes; auto-select single-variant products
   useEffect(() => {
-    setSelectedOptions({});
-    setValidationMessage(''); // Clear message on product change
-
+    setValidationMessage('');
     if (product?.variants?.length === 1) {
-      const singleVariant = product.variants[0];
       const initialSelected = {};
-      singleVariant?.attributes?.forEach((attr) => {
+      product.variants[0]?.attributes?.forEach((attr) => {
         if (attr?.option?.name) {
-          initialSelected[attr?.option?.name] = attr.value;
+          initialSelected[attr.option.name] = attr.value;
         }
       });
       setSelectedOptions(initialSelected);
-      setSelectedVariant(singleVariant);
     } else {
-      setSelectedVariant(null);
+      setSelectedOptions({});
     }
   }, [product]);
 
-  // Effect 2: Main logic for updating options and variant selection
-  useEffect(() => {
-    if (!product || !product.variants || product.variants.length === 0) {
-      setOptions([]);
-      setSelectedVariant(null);
-      return;
-    }
-
-    // If single variant product, options are already set by Effect 1.
-    if (
-      product.variants.length === 1 &&
-      Object.keys(selectedOptions).length > 0
-    ) {
-      const singleVariant = product.variants[0];
-      const allOptionsMap = new Map();
-      singleVariant?.attributes?.forEach((attr) => {
-        if (!allOptionsMap.has(attr?.option?.name)) {
-          allOptionsMap.set(attr?.option?.name, new Set());
-        }
-        allOptionsMap.get(attr?.option?.name).add(attr.value);
-      });
-      const allOptions = Array.from(allOptionsMap.keys()).map((name) => ({
-        name,
-        values: Array.from(allOptionsMap.get(name)),
-      }));
-      const displayedOptions = allOptions.map((option) => ({
-        name: option.name,
-        values: option.values.map((value) => ({ value, available: true })),
-      }));
-      setOptions(displayedOptions);
-      setSelectedVariant(singleVariant);
-      return;
-    }
-
-    const allOptionsMap = new Map();
-    product.variants.forEach((variant) => {
+  // Option groups, e.g. [{ name: 'Size', values: ['S','M'] }, ...]
+  const optionGroups = useMemo(() => {
+    const groupsMap = new Map();
+    product?.variants?.forEach((variant) => {
       variant?.attributes?.forEach((attr) => {
-        if (!allOptionsMap.has(attr?.option?.name)) {
-          allOptionsMap.set(attr?.option?.name, new Set());
-        }
-        allOptionsMap.get(attr?.option?.name).add(attr.value);
+        const name = attr?.option?.name;
+        if (!name) return;
+        if (!groupsMap.has(name)) groupsMap.set(name, new Set());
+        groupsMap.get(name).add(attr.value);
       });
     });
-
-    const allOptions = Array.from(allOptionsMap.keys()).map((name) => ({
+    return Array.from(groupsMap, ([name, values]) => ({
       name,
-      values: Array.from(allOptionsMap.get(name)),
+      values: Array.from(values),
     }));
+  }, [product]);
 
-    const displayedOptions = allOptions.map((option, index) => {
-      const isOptionGroupEnabled = allOptions
-        .slice(0, index)
-        .every((prevOption) => selectedOptions[prevOption.name]);
-
-      if (!isOptionGroupEnabled) {
+  // A value stays selectable as long as some variant matches the current
+  // selections combined with that value — every group is always interactive.
+  const options = useMemo(() => {
+    if (!product?.variants?.length) return [];
+    return optionGroups.map((group) => ({
+      name: group.name,
+      values: group.values.map((value) => {
+        const candidate = { ...selectedOptions, [group.name]: value };
+        const matchingVariants = product.variants.filter((variant) =>
+          variantMatches(variant, candidate),
+        );
         return {
-          name: option.name,
-          values: option.values.map((value) => ({ value, available: false })), // All disabled
-        };
-      }
-
-      const availableValues = new Set();
-      const previousOptionNames = allOptions.slice(0, index).map((o) => o.name);
-
-      product.variants.forEach((variant) => {
-        const matchesPrevious = previousOptionNames.every((prevOptionName) => {
-          const selectedValue = selectedOptions[prevOptionName];
-          return variant?.attributes?.some(
-            (attr) =>
-              attr?.option?.name === prevOptionName &&
-              attr.value === selectedValue,
-          );
-        });
-
-        if (matchesPrevious) {
-          const attr = variant?.attributes?.find(
-            (a) => a.option.name === option.name,
-          );
-          if (attr) {
-            availableValues.add(attr.value);
-          }
-        }
-      });
-
-      return {
-        name: option.name,
-        values: option.values.map((value) => ({
           value,
-          available: availableValues.has(value),
-        })),
-      };
-    });
-    setOptions(displayedOptions);
+          available: matchingVariants.length > 0,
+          inStock: matchingVariants.some((variant) => variant.stock !== 0),
+        };
+      }),
+    }));
+  }, [product, optionGroups, selectedOptions]);
 
-    if (Object.keys(selectedOptions).length === allOptions.length) {
-      const newVariant = product.variants.find((variant) =>
-        Object.entries(selectedOptions).every(([key, value]) =>
-          variant?.attributes?.some(
-            (attr) => attr?.option?.name === key && attr.value === value,
-          ),
-        ),
-      );
-      setSelectedVariant(newVariant);
-      setValidationMessage(''); // Clear validation message
-    } else {
-      setSelectedVariant(null);
-      setValidationMessage('Please select all variant options.'); // Set validation message
-    }
-  }, [product, selectedOptions]);
+  const selectedVariant = useMemo(() => {
+    if (!product?.variants?.length) return null;
+    const fullySelected = optionGroups.every(
+      (group) => selectedOptions[group.name] !== undefined,
+    );
+    if (!fullySelected) return null;
+    return (
+      product.variants.find((variant) =>
+        variantMatches(variant, selectedOptions),
+      ) ?? null
+    );
+  }, [product, optionGroups, selectedOptions]);
+
+  const missingOptions = useMemo(
+    () =>
+      optionGroups
+        .filter((group) => selectedOptions[group.name] === undefined)
+        .map((group) => group.name),
+    [optionGroups, selectedOptions],
+  );
+
+  const priceRange = useMemo(() => {
+    if (!product?.variants?.length) return null;
+    const prices = product.variants
+      .map((variant) =>
+        variant.discount > 0 ? variant.discount : variant.price,
+      )
+      .filter((price) => typeof price === 'number' && !isNaN(price));
+    if (!prices.length) return null;
+    return { min: Math.min(...prices), max: Math.max(...prices) };
+  }, [product]);
+
+  const hasUnavailableValues = useMemo(
+    () => options.some((option) => option.values.some((v) => !v.available)),
+    [options],
+  );
 
   const handleOptionChange = (optionName, value) => {
-    const allOptionNames = options.map((o) => o.name);
-    const optionIndex = allOptionNames.indexOf(optionName);
-
-    const newSelected = { [optionName]: value };
-
-    for (let i = 0; i < optionIndex; i++) {
-      const prevOptionName = allOptionNames[i];
-      newSelected[prevOptionName] = selectedOptions[prevOptionName];
+    // Keep earlier selections only while they still form a valid combination
+    // with the newly chosen value; drop the ones that conflict.
+    const next = { [optionName]: value };
+    for (const group of optionGroups) {
+      if (group.name === optionName) continue;
+      const previousValue = selectedOptions[group.name];
+      if (previousValue === undefined) continue;
+      const candidate = { ...next, [group.name]: previousValue };
+      if (
+        product.variants.some((variant) => variantMatches(variant, candidate))
+      ) {
+        next[group.name] = previousValue;
+      }
     }
+    setSelectedOptions(next);
+    setValidationMessage('');
+  };
 
-    setSelectedOptions(newSelected);
-    setValidationMessage(''); // Clear message on selection change
+  const ensureVariantSelected = () => {
+    if (product.variants?.length > 0 && !selectedVariant) {
+      setValidationMessage(
+        missingOptions.length > 0
+          ? `Please select: ${missingOptions.join(', ')}`
+          : 'This combination is not available. Please choose another.',
+      );
+      return false;
+    }
+    return true;
   };
 
   const handleAddToCart = () => {
-    if (product.variants?.length > 0 && !selectedVariant) {
-      const requiredOptions = options.map((o) => o.name);
-      const missingOptions = requiredOptions.filter(
-        (opt) => !selectedOptions[opt],
-      );
-      if (missingOptions.length > 0) {
-        setValidationMessage(`${missingOptions.join(' / ')} required!`);
-      } else if (product.variants?.length > 0) {
-        setValidationMessage('Please select all variant options.');
-      }
-      return;
-    }
+    if (!ensureVariantSelected()) return;
     addToCart(product, quantity, selectedVariant);
-    setValidationMessage(''); // Clear message on success
+    setValidationMessage('');
 
     window.dataLayer = window.dataLayer || [];
     window.dataLayer.push({
@@ -219,6 +188,13 @@ const ProductAddToCart = ({ product }) => {
     });
   };
 
+  const handleOrderOnDelivery = () => {
+    if (!ensureVariantSelected()) return;
+    addToCart(product, quantity, selectedVariant);
+    setValidationMessage('');
+    navigate('/checkout');
+  };
+
   const handleQuantityChange = (type) => {
     if (type === 'increase' && quantity < MAX_QUANTITY) {
       setQuantity((prev) => prev + 1);
@@ -232,9 +208,11 @@ const ProductAddToCart = ({ product }) => {
     return price.toLocaleString();
   };
 
-  const cleanHtml = (html) => sanitizeHtml(html);
-
-  const variantForPrice = selectedVariant || product.variants?.[0];
+  const currentStock = product.variants?.length
+    ? selectedVariant?.stock
+    : product.finalStock;
+  const showLowStockNotice =
+    typeof currentStock === 'number' && currentStock > 0 && currentStock < 20;
 
   return (
     <div>
@@ -270,31 +248,57 @@ const ProductAddToCart = ({ product }) => {
               </div>
             )}
 
-            {/*With Variant Price Display */}
-            {variantForPrice && (
+            {/* Selected Variant Price Display */}
+            {product.variants?.length > 0 && selectedVariant && (
               <div className="flex gap-1 md:gap-2 flex-wrap">
-                {variantForPrice.discount > 0 ? (
+                {selectedVariant.discount > 0 ? (
                   <>
                     <div className="line-through ">
-                      Tk. {formatPrice(Number(variantForPrice.price))}
+                      Tk. {formatPrice(Number(selectedVariant.price))}
                     </div>
                     <div className="text-red-800 ">
-                      Tk. {formatPrice(Number(variantForPrice.discount))}
+                      Tk. {formatPrice(Number(selectedVariant.discount))}
                     </div>
                     <div className="hidden sm:block ">
                       You Save: Tk{' '}
                       {formatPrice(
                         Number(
-                          variantForPrice.price - variantForPrice.discount,
+                          selectedVariant.price - selectedVariant.discount,
                         ),
                       )}
                     </div>
                   </>
                 ) : (
                   <div className="text-black">
-                    Tk. {formatPrice(Number(variantForPrice.price))}
+                    Tk. {formatPrice(Number(selectedVariant.price))}
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Price range shown until an option combination is complete */}
+            {product.variants?.length > 0 && !selectedVariant && priceRange && (
+              <div className="flex flex-col gap-0.5 items-center">
+                <div className="flex gap-1 md:gap-2 items-center">
+                  {priceRange.min === priceRange.max ? (
+                    <div className="text-black font-medium">
+                      Tk. {formatPrice(priceRange.min)}
+                    </div>
+                  ) : (
+                    <>
+                      <div className="text-black font-medium">
+                        Tk. {formatPrice(priceRange.min)}
+                      </div>
+                      <span className="text-gray-500">–</span>
+                      <div className="text-black font-medium">
+                        Tk. {formatPrice(priceRange.max)}
+                      </div>
+                    </>
+                  )}
+                </div>
+                <div className="text-gray-500 text-xs md:text-sm">
+                  Select options to see the exact price
+                </div>
               </div>
             )}
 
@@ -326,33 +330,106 @@ const ProductAddToCart = ({ product }) => {
             )}
           </div>
 
-          {!selectedVariant && product.variants?.length > 0 && (
-            <div className=" text-red-500">
-              {validationMessage || 'Select options to see price.'}{' '}
+          {/* Selection status: error after a failed attempt, confirmation when
+              complete, gentle hint while options are still missing */}
+          {product.variants?.length > 0 && (
+            <div className="text-sm md:text-base">
+              {validationMessage ? (
+                <span className="text-red-500 font-medium">
+                  {validationMessage}
+                </span>
+              ) : selectedVariant ? (
+                <span className="text-[#2E7D31] font-medium">
+                  ✓ Selected:{' '}
+                  {optionGroups
+                    .map(
+                      (group) =>
+                        `${group.name}: ${selectedOptions[group.name]}`,
+                    )
+                    .join('  ·  ')}
+                </span>
+              ) : (
+                <span className="text-gray-500">
+                  Please select {missingOptions.join(', ')} to continue.
+                </span>
+              )}
             </div>
           )}
 
-          {options.map((option) => (
-            <div key={option.name} className={'flex flex-col gap-1'}>
-              <h2 className=" font-semibold">{option.name} :</h2>
-              <div className="flex gap-2 flex-wrap ">
-                {option.values.map(({ value, available }) => (
-                  <button
-                    key={value}
-                    onClick={() => handleOptionChange(option.name, value)}
-                    disabled={!available}
-                    className={`px-2 py-0.5 md:px-3 md:py-1 rounded  transition-all duration-200 ${
-                      selectedOptions[option.name] === value
-                        ? 'primaryBgColor text-white'
-                        : 'bg-green-300 text-gray-800 hover:bg-gray-300'
-                    } ${!available ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    {value}
-                  </button>
-                ))}
+          {hasUnavailableValues && (
+            <p className="text-xs text-gray-500">
+              Crossed-out options are not available with your current selection.
+            </p>
+          )}
+
+          {options.map((option) => {
+            const isMissing =
+              validationMessage && selectedOptions[option.name] === undefined;
+            return (
+              <div key={option.name} className={'flex flex-col gap-1.5'}>
+                <div className="flex items-center gap-2">
+                  <h2 className="font-semibold">{option.name}</h2>
+                  {selectedOptions[option.name] !== undefined && (
+                    <span className="text-gray-600 text-sm md:text-base">
+                      :{' '}
+                      <span className="primaryTextColor font-medium">
+                        {selectedOptions[option.name]}
+                      </span>
+                    </span>
+                  )}
+                  {isMissing && (
+                    <span className="text-red-500 text-xs font-semibold">
+                      Required
+                    </span>
+                  )}
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  {option.values.map(({ value, available, inStock }) => {
+                    const isSelected = selectedOptions[option.name] === value;
+                    let classes =
+                      'px-3 py-1.5 md:px-4 md:py-2 rounded-full border text-sm md:text-base transition-all duration-150';
+                    if (!available) {
+                      classes +=
+                        ' bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed';
+                    } else if (isSelected) {
+                      classes +=
+                        ' primaryBgColor accentTextColor border-transparent shadow-sm';
+                    } else if (!inStock) {
+                      classes +=
+                        ' bg-white border-dashed border-gray-300 text-gray-500 cursor-pointer';
+                    } else {
+                      classes +=
+                        ' bg-white border-gray-300 text-gray-800 hover:border-[var(--primaryColor)] hover:text-[var(--primaryColor)] cursor-pointer';
+                    }
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => handleOptionChange(option.name, value)}
+                        disabled={!available}
+                        aria-pressed={isSelected}
+                        title={
+                          available
+                            ? undefined
+                            : 'Not available with your current selection'
+                        }
+                        className={classes}
+                      >
+                        <span className={!inStock ? 'line-through' : ''}>
+                          {value}
+                        </span>
+                        {available && !inStock && (
+                          <span className="block text-[10px] leading-tight opacity-80">
+                            Sold out
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
 
           <div className={'flex flex-wrap gap-2 md:gap-4 items-center mt-2'}>
             <div
@@ -404,31 +481,16 @@ const ProductAddToCart = ({ product }) => {
               className={'primaryBgColor accentTextColor px-2 py-1 shrink-0'}
             />
           </div>
+          {showLowStockNotice && (
+            <div className="primaryTextColor text-sm font-semibold">
+              Only {currentStock} left!
+            </div>
+          )}
           {selectedVariant?.stock !== 0 && (
             <div className={'flex items-center justify-center'}>
               <button
                 className="primaryBgColor flex-1   accentTextColor px-2 py-1 md:py-2 rounded cursor-pointer"
-                onClick={() => {
-                  if (product.variants?.length > 0 && !selectedVariant) {
-                    const requiredOptions = options.map((o) => o.name);
-                    const missingOptions = requiredOptions.filter(
-                      (opt) => !selectedOptions[opt],
-                    );
-                    if (missingOptions.length > 0) {
-                      setValidationMessage(
-                        `${missingOptions.join(' / ')} required!`,
-                      );
-                    } else if (product.variants?.length > 0) {
-                      setValidationMessage(
-                        'Please select all variant options.',
-                      );
-                    }
-                    return;
-                  }
-                  addToCart(product, quantity, selectedVariant);
-                  navigate('/checkout');
-                  setValidationMessage('');
-                }}
+                onClick={handleOrderOnDelivery}
               >
                 Order With Cash On Delivery
               </button>
