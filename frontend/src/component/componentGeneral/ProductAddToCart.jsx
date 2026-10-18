@@ -275,13 +275,13 @@ const ProductAddToCart = ({ product }) => {
               <div className="flex gap-1 md:gap-2 flex-wrap">
                 {variantForPrice.discount > 0 ? (
                   <>
-                    <div className="line-through text-xs md:text-sm">
+                    <div className="line-through ">
                       Tk. {formatPrice(Number(variantForPrice.price))}
                     </div>
-                    <div className="text-red-800 text-xs md:text-sm">
+                    <div className="text-red-800 ">
                       Tk. {formatPrice(Number(variantForPrice.discount))}
                     </div>
-                    <div className="hidden sm:block text-xs md:text-sm">
+                    <div className="hidden sm:block ">
                       You Save: Tk{' '}
                       {formatPrice(
                         Number(
@@ -307,12 +307,20 @@ const ProductAddToCart = ({ product }) => {
             )}
 
             {product.productCode && (
-              <div className={'bg-gray-100 px-3 py-1.5 rounded text-sm md:text-base'}>
+              <div
+                className={
+                  'bg-gray-100 px-3 py-1.5 rounded text-sm md:text-base'
+                }
+              >
                 <strong>Product Code:</strong> {product.productCode}
               </div>
             )}
             {product.rewardPoints && (
-              <div className={'bg-gray-100 px-3 py-1.5 rounded text-sm md:text-base'}>
+              <div
+                className={
+                  'bg-gray-100 px-3 py-1.5 rounded text-sm md:text-base'
+                }
+              >
                 Purchase & Earn: {product.rewardPoints} points.
               </div>
             )}
@@ -326,19 +334,17 @@ const ProductAddToCart = ({ product }) => {
 
           {options.map((option) => (
             <div key={option.name} className={'flex flex-col gap-1'}>
-              <h2 className="text-sm md:text-lg font-semibold">
-                {option.name} :
-              </h2>
+              <h2 className=" font-semibold">{option.name} :</h2>
               <div className="flex gap-2 flex-wrap ">
                 {option.values.map(({ value, available }) => (
                   <button
                     key={value}
                     onClick={() => handleOptionChange(option.name, value)}
                     disabled={!available}
-                    className={`px-2 py-0.5 md:px-3 md:py-1 rounded text-xs md:text-sm transition-all duration-200 ${
+                    className={`px-2 py-0.5 md:px-3 md:py-1 rounded  transition-all duration-200 ${
                       selectedOptions[option.name] === value
                         ? 'primaryBgColor text-white'
-                        : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                        : 'bg-green-300 text-gray-800 hover:bg-gray-300'
                     } ${!available ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     {value}
