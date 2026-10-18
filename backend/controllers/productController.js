@@ -11,17 +11,15 @@ const createProduct = async (req, res) => {
 
     // Check if thumbnailImage is uploaded
     if (req.files && req.files.thumbnailImage) {
-      // Store only the image name (without the full path)
-      productData.thumbnailImage = req.files.thumbnailImage[0].filename; // Save only the image name
+      productData.thumbnailImage = req.files.thumbnailImage[0].filename;
     }
 
     // Check if images are uploaded
     if (req.files && req.files.images) {
-      // Store only the image names (without the full paths)
-      productData.images = req.files.images.map((file) => file.filename); // Save only the image names
+      productData.images = req.files.images.map((file) => file.filename);
     }
 
-    const product = await productService.createProduct(productData);
+    const product = await productService.createProduct(productData, req.files);
 
     // Invalidate the cache
     redisClient.del('/api/products');

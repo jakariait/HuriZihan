@@ -32,6 +32,7 @@ const ProductDetails = () => {
 
   const [currentProductSlug, setCurrentProductSlug] = useState(null);
   const [recentlyViewed, setRecentlyViewed] = useState([]);
+  const [selectedVariantImage, setSelectedVariantImage] = useState('');
 
   useEffect(() => {
     if (slug !== currentProductSlug) {
@@ -65,7 +66,22 @@ const ProductDetails = () => {
       ? calculateDiscountPercentage(product.finalPrice, product.finalDiscount)
       : 0;
 
+  useEffect(() => {
+    setSelectedVariantImage('');
+  }, [product?._id]);
+
   const cleanHtml = (html) => sanitizeHtml(html);
+
+  const handleVariantChange = (variant) => {
+    if (!variant || !product?.variants) {
+      setSelectedVariantImage('');
+      return;
+    }
+    const matched = product.variants.find(
+      (v) => v._id.toString() === variant._id.toString(),
+    );
+    setSelectedVariantImage(matched?.image ? matched.image : '');
+  };
 
   // Data layer for View Content
 
@@ -196,12 +212,17 @@ const ProductDetails = () => {
             <div className="md:col-span-4 lg:col-span-6 xl:col-span-5 relative">
               <ProductGallery
                 images={product.images}
+                variants={product.variants}
+                selectedVariantImage={selectedVariantImage}
                 discount={discountPercentage}
                 productName={product.name}
               />
             </div>
             <div className="flex flex-col gap-3 md:col-span-4 lg:col-span-3 xl:col-span-4 pt-4 md:pt-0">
-              <ProductAddToCart product={product} />
+              <ProductAddToCart
+                product={product}
+                onVariantChange={handleVariantChange}
+              />
 
               {/*Social Share Buttons*/}
 

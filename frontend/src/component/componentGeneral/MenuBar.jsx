@@ -194,9 +194,7 @@ const MenuItem = memo(({ label, children }) => {
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      <div className="px-2 py-2 text-gray-800 font-semibold cursor-pointer">
-        {label}
-      </div>
+      <div className="px-2 py-2 text-gray-800  cursor-pointer">{label}</div>
 
       {/* Use CSS transition for smoother animation */}
       <div

@@ -61,6 +61,10 @@ const productVariantSchema = new mongoose.Schema({
       message: 'Discount cannot be negative',
     },
   },
+  image: {
+    type: String,
+    trim: true,
+  },
 });
 
 const productSchema = new mongoose.Schema(

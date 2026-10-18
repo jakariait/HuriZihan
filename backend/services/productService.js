@@ -25,10 +25,25 @@ const deleteOldFiles = (filenames) => {
 };
 
 // Create a new product
-const createProduct = async (data) => {
+const createProduct = async (data, files) => {
   try {
     delete data.hasVariant;
-    const product = new ProductModel(data); // Save product with image names
+
+    // Handle variant images from uploaded files
+    if (data.variants && Array.isArray(data.variants)) {
+      data.variants = data.variants.map((variant, index) => {
+        const variantImageFile =
+          files && files[`variants[${index}][image]`]
+            ? files[`variants[${index}][image]`][0]
+            : null;
+        return {
+          ...variant,
+          ...(variantImageFile && { image: variantImageFile.filename }),
+        };
+      });
+    }
+
+    const product = new ProductModel(data);
     await product.save();
     return product;
   } catch (error) {
@@ -110,6 +125,15 @@ const deleteProduct = async (productId) => {
     }
     if (deletedProduct.images && deletedProduct.images.length > 0) {
       deleteOldFiles(deletedProduct.images);
+    }
+
+    // Delete variant images
+    if (deletedProduct.variants && deletedProduct.variants.length > 0) {
+      deletedProduct.variants.forEach((v) => {
+        if (v.image) {
+          deleteOldFile(v.image);
+        }
+      });
     }
 
     return deletedProduct;
@@ -465,15 +489,49 @@ const updateProduct = async (productId, updatedData, files) => {
 
     // --- IMAGE HANDLING END ---
 
+    // Handle deleted variant images
+    if (updatedData.variantImagesToDelete) {
+      const toDelete = Array.isArray(updatedData.variantImagesToDelete)
+        ? updatedData.variantImagesToDelete
+        : [updatedData.variantImagesToDelete];
+
+      toDelete.forEach(deleteOldFile);
+      product.variants.forEach((v) => {
+        if (v.image && toDelete.includes(v.image)) {
+          v.image = undefined;
+        }
+      });
+    }
+
+    // Extract variant images from uploaded files (keyed by variants[${index}][image])
+    const variantImageMap = {};
+    if (files) {
+      Object.keys(files).forEach((fieldName) => {
+        const match = fieldName.match(/^variants\[(\d+)\]\[image\]$/);
+        if (match) {
+          const index = parseInt(match[1], 10);
+          variantImageMap[index] = files[fieldName][0].filename;
+        }
+      });
+    }
+
     // 2. Secure variant updates
     if (updatedData.hasVariant === 'false' || updatedData.hasVariant === false) {
-      // User switched to no-variant mode — clear all variants
+      // User switched to no-variant mode — clear all variants and delete their images
+      product.variants.forEach((v) => {
+        if (v.image) {
+          deleteOldFile(v.image);
+        }
+      });
       updatedData.variants = [];
     } else if (
       updatedData.variants &&
       Array.isArray(updatedData.variants) &&
       updatedData.variants.length > 0
     ) {
+      // Track which existing variant _ids are being kept (matched by attributes)
+      const keptVariantIds = new Set();
+
       updatedData.variants = updatedData.variants.map((variantData, index) => {
         // Validate attributes
         if (
@@ -498,7 +556,6 @@ const updateProduct = async (productId, updatedData, files) => {
           if (v.attributes.length !== variantData.attributes.length) return false;
           return v.attributes.every((attr, i) => {
             const inputAttr = variantData.attributes[i];
-            // Compare both as strings to handle ObjectId vs string comparison
             return (
               attr.option.toString() === String(inputAttr.option) &&
               String(attr.value) === String(inputAttr.value)
@@ -506,10 +563,23 @@ const updateProduct = async (productId, updatedData, files) => {
           });
         });
 
+        const newImage = variantImageMap[index] || undefined;
+
         if (existingVariant) {
+          keptVariantIds.add(existingVariant._id.toString());
+
+          // Replace image if a new one was uploaded; otherwise keep existing
+          const finalImage = newImage !== undefined ? newImage : existingVariant.image;
+
+          // Delete old image if replaced
+          if (newImage !== undefined && existingVariant.image) {
+            deleteOldFile(existingVariant.image);
+          }
+
           return {
             _id: existingVariant._id,
             attributes: existingVariant.attributes,
+            image: finalImage,
             stock:
               variantData.stock !== undefined ? Number(variantData.stock) : existingVariant.stock,
             price:
@@ -533,13 +603,26 @@ const updateProduct = async (productId, updatedData, files) => {
             option: new mongoose.Types.ObjectId(attr.option),
             value: String(attr.value),
           })),
+          image: newImage,
           price: Number(variantData.price),
           stock: Number(variantData.stock),
           discount: variantData.discount === '' ? null : Number(variantData.discount) || null,
         };
       });
+
+      // Delete images for existing variants that were removed (not matched)
+      product.variants.forEach((v) => {
+        if (!keptVariantIds.has(v._id.toString()) && v.image) {
+          deleteOldFile(v.image);
+        }
+      });
     } else {
-      // No variants provided — clear existing variants
+      // No variants provided — clear existing variants and delete their images
+      product.variants.forEach((v) => {
+        if (v.image) {
+          deleteOldFile(v.image);
+        }
+      });
       updatedData.variants = [];
     }
 

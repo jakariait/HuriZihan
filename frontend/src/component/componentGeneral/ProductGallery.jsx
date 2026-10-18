@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import LightGallery from 'lightgallery/react';
 import 'lightgallery/css/lightgallery.css';
 import 'lightgallery/css/lg-thumbnail.css';
@@ -9,33 +9,74 @@ import ImageComponent from './ImageComponent.jsx';
 import { IoIosArrowBack, IoIosArrowForward } from 'react-icons/io';
 import { BsArrowsFullscreen } from 'react-icons/bs';
 
-const ProductGallery = ({ images, discount, zoom = true, productName }) => {
+const ProductGallery = ({
+  images,
+  variants,
+  selectedVariantImage,
+  discount,
+  zoom = true,
+  productName,
+}) => {
   const [imageUrls, setImageUrls] = useState([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const thumbnailRefs = useRef([]);
-  const lightGalleryRef = useRef(null);
+  const [showVariantImage, setShowVariantImage] = useState(false);
 
   useEffect(() => {
-    if (images?.length > 0) {
-      const apiUrl = import.meta.env.VITE_API_URL;
-      const urls = images.map(
-        (imageName) => `${apiUrl.replace('/api', '')}/uploads/${imageName}`,
-      );
-      setImageUrls(urls);
+    const variantImages = [];
+    const seen = new Set();
+
+    if (variants && Array.isArray(variants)) {
+      variants.forEach((v) => {
+        if (v.image && !seen.has(v.image)) {
+          seen.add(v.image);
+          variantImages.push(v.image);
+        }
+      });
     }
-  }, [images]);
+
+    const productImages = images || [];
+    const allImages = [
+      ...variantImages,
+      ...productImages.filter((img) => !seen.has(img)),
+    ];
+
+    const apiUrl = import.meta.env.VITE_API_URL;
+    const urls = allImages.map(
+      (imageName) => `${apiUrl.replace('/api', '')}/uploads/${imageName}`,
+    );
+    setImageUrls(urls);
+  }, [images, variants]);
 
   useEffect(() => {
-    if (thumbnailRefs.current[activeIndex]) {
+    setShowVariantImage(!!selectedVariantImage);
+  }, [selectedVariantImage]);
+
+  useEffect(() => {
+    if (selectedVariantImage && imageUrls.length > 0) {
+      const apiUrl = import.meta.env.VITE_API_URL;
+      const variantUrl = selectedVariantImage.startsWith('http')
+        ? selectedVariantImage
+        : `${apiUrl.replace('/api', '')}/uploads/${selectedVariantImage}`;
+      const index = imageUrls.findIndex((url) => url === variantUrl);
+      if (index !== -1) {
+        setActiveIndex(index);
+      }
+    }
+  }, [selectedVariantImage, imageUrls]);
+
+  useEffect(() => {
+    if (!showVariantImage && thumbnailRefs.current[activeIndex]) {
       thumbnailRefs.current[activeIndex].scrollIntoView({
         behavior: 'smooth',
         inline: 'center',
         block: 'nearest',
       });
     }
-  }, [activeIndex]);
+  }, [activeIndex, showVariantImage]);
 
   const changeImage = (direction) => {
+    setShowVariantImage(false);
     setActiveIndex((prevIndex) => {
       if (direction === 'next') {
         return prevIndex === imageUrls.length - 1 ? 0 : prevIndex + 1;
@@ -46,6 +87,23 @@ const ProductGallery = ({ images, discount, zoom = true, productName }) => {
   };
 
   const plugins = zoom ? [lgThumbnail, lgZoom] : [];
+
+  const mainImageName =
+    showVariantImage && selectedVariantImage
+      ? selectedVariantImage
+      : imageUrls[activeIndex]
+        ? imageUrls[activeIndex].replace(
+            `${import.meta.env.VITE_API_URL.replace('/api', '')}/uploads/`,
+            '',
+          )
+        : '';
+
+  const mainImageUrl =
+    showVariantImage && selectedVariantImage
+      ? selectedVariantImage.startsWith('http')
+        ? selectedVariantImage
+        : `${import.meta.env.VITE_API_URL.replace('/api', '')}/uploads/${selectedVariantImage}`
+      : imageUrls[activeIndex];
 
   if (imageUrls.length === 0) return <p>Loading images...</p>;
 
@@ -86,31 +144,25 @@ const ProductGallery = ({ images, discount, zoom = true, productName }) => {
 
         {zoom ? (
           <LightGallery speed={500} plugins={plugins}>
-            {imageUrls.map((url, index) => (
-              <a
-                key={index}
-                href={url}
-                className={activeIndex === index ? 'block' : 'hidden'}
+            <a key="main" href={mainImageUrl} className="block">
+              <ImageComponent
+                imageName={mainImageName}
+                altName={productName}
+                className="w-full aspect-square object-cover"
+                skeletonHeight={'400px'}
+              />
+              <button
+                className="absolute md:bottom-4 bottom-1 left-1 p-3 md:left-3 bg-white rounded-full cursor-pointer"
+                aria-label={'full screen'}
               >
-                <ImageComponent
-                  imageName={images[index]}
-                  altName={productName}
-                  className="w-full aspect-square object-cover"
-                  skeletonHeight={'400px'}
-                />
-                <button
-                  className="absolute md:bottom-4 bottom-1 left-1 p-3 md:left-3 bg-white rounded-full cursor-pointer"
-                  aria-label={'full screen'}
-                >
-                  <BsArrowsFullscreen />
-                </button>
-              </a>
-            ))}
+                <BsArrowsFullscreen />
+              </button>
+            </a>
           </LightGallery>
         ) : (
           <div>
             <ImageComponent
-              imageName={images[activeIndex]}
+              imageName={mainImageName}
               altName={productName}
               className="w-full aspect-square object-cover"
               skeletonHeight={'200px'}
@@ -132,25 +184,34 @@ const ProductGallery = ({ images, discount, zoom = true, productName }) => {
 
           <div className="p-1 md:p-2 flex items-center justify-center-safe gap-1 overflow-x-auto w-full scrollbar-hide">
             <div className="flex gap-1 md:gap-4">
-              {imageUrls.map((imgUrl, index) => (
-                <div
-                  key={index}
-                  ref={(el) => (thumbnailRefs.current[index] = el)}
-                  className={`cursor-pointer overflow-hidden transition-all duration-200 border-1 shrink-0 w-10 h-10 md:w-30 md:h-30 ${
-                    activeIndex === index
-                      ? 'primaryBorderColor scale-105'
-                      : 'border-transparent opacity-80'
-                  }`}
-                  onClick={() => setActiveIndex(index)}
-                >
-                  <ImageComponent
-                    imageName={images[index]}
-                    altName={productName}
-                    className="w-full aspect-square object-cover"
-                    skeletonHeight={'200px'}
-                  />
-                </div>
-              ))}
+              {imageUrls.map((imgUrl, index) => {
+                const imageName = imgUrl.replace(
+                  `${import.meta.env.VITE_API_URL.replace('/api', '')}/uploads/`,
+                  '',
+                );
+                return (
+                  <div
+                    key={index}
+                    ref={(el) => (thumbnailRefs.current[index] = el)}
+                    className={`cursor-pointer overflow-hidden transition-all duration-200 border-1 shrink-0 w-10 h-10 md:w-30 md:h-30 ${
+                      activeIndex === index
+                        ? 'primaryBorderColor scale-105'
+                        : 'border-transparent opacity-80'
+                    }`}
+                    onClick={() => {
+                      setShowVariantImage(false);
+                      setActiveIndex(index);
+                    }}
+                  >
+                    <ImageComponent
+                      imageName={imageName}
+                      altName={productName}
+                      className="w-full aspect-square object-cover"
+                      skeletonHeight={'200px'}
+                    />
+                  </div>
+                );
+              })}
             </div>
           </div>
 

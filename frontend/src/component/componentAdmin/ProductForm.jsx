@@ -98,13 +98,16 @@ const ProductForm = ({ isEdit: isEditMode }) => {
       stock: '',
       price: '',
       discount: '',
+      image: '',
     },
   ]);
+  const [variantImages, setVariantImages] = useState({});
   const [isActive, setIsActive] = useState('true');
   const [freeShipping, setFreeShipping] = useState(false);
 
   const [existingImages, setExistingImages] = useState([]);
   const [imagesToDelete, setImagesToDelete] = useState([]);
+  const [variantImagesToDelete, setVariantImagesToDelete] = useState([]);
   const [draggedIndex, setDraggedIndex] = useState(null);
   const [dragSource, setDragSource] = useState(null);
 
@@ -115,6 +118,18 @@ const ProductForm = ({ isEdit: isEditMode }) => {
   const imagesInputRef = useRef(null);
 
   const imageUrl = `${apiUrl.replace('/api', '')}/uploads`;
+
+  const getVariantImageUrl = (imageName) => {
+    if (!imageName) return '';
+    if (
+      imageName.startsWith('blob:') ||
+      imageName.startsWith('data:') ||
+      imageName.startsWith('http')
+    ) {
+      return imageName;
+    }
+    return `${imageUrl}/${imageName}`;
+  };
 
   useEffect(() => {
     if (isEditMode && slug) {
@@ -161,19 +176,35 @@ const ProductForm = ({ isEdit: isEditMode }) => {
       setExistingImages(product.images || []);
 
       if (product.variants && product.variants.length > 0) {
+        const loadedVariantImages = {};
         setVariants(
-          product.variants.map((v) => ({
-            attributes: v.attributes
-              ? v.attributes.map((attr) => ({
-                  option: attr.option?._id || attr.option || '',
-                  value: attr.value || '',
-                }))
-              : [],
-            stock: v.stock,
-            price: v.price,
-            discount: v.discount || '',
-          })),
+          product.variants.map((v, idx) => {
+            if (v.image) {
+              loadedVariantImages[idx] = {
+                file: null,
+                preview:
+                  v.image.startsWith('blob:') ||
+                  v.image.startsWith('data:') ||
+                  v.image.startsWith('http')
+                    ? v.image
+                    : `${imageUrl}/${v.image}`,
+              };
+            }
+            return {
+              attributes: v.attributes
+                ? v.attributes.map((attr) => ({
+                    option: attr.option?._id || attr.option || '',
+                    value: attr.value || '',
+                  }))
+                : [],
+              stock: v.stock,
+              price: v.price,
+              discount: v.discount || '',
+              image: v.image || '',
+            };
+          }),
         );
+        setVariantImages(loadedVariantImages);
         setHasVariant(true);
       } else {
         setVariants([
@@ -182,12 +213,23 @@ const ProductForm = ({ isEdit: isEditMode }) => {
             stock: '',
             price: '',
             discount: '',
+            image: '',
           },
         ]);
         setHasVariant(false);
       }
     }
   }, [product, isEditMode, imageUrl]);
+
+  useEffect(() => {
+    return () => {
+      Object.values(variantImages).forEach((img) => {
+        if (img?.preview) {
+          URL.revokeObjectURL(img.preview);
+        }
+      });
+    };
+  }, [variantImages]);
 
   useEffect(() => {
     if (isEditMode && product && product.category) {
@@ -229,7 +271,57 @@ const ProductForm = ({ isEdit: isEditMode }) => {
 
   const handleRemoveVariant = (index) => {
     setVariants(variants.filter((_, i) => i !== index));
+    setVariantImages((prev) => {
+      const updated = { ...prev };
+      delete updated[index];
+      const renumbered = {};
+      Object.keys(updated)
+        .sort((a, b) => Number(a) - Number(b))
+        .forEach((key, i) => {
+          renumbered[i] = updated[key];
+        });
+      return renumbered;
+    });
   };
+
+  const handleVariantImageChange = (variantIndex, event) => {
+    const file = event.target.files[0];
+    if (file) {
+      const preview = URL.createObjectURL(file);
+      setVariantImages((prev) => ({
+        ...prev,
+        [variantIndex]: { file, preview },
+      }));
+      const updatedVariants = [...variants];
+      updatedVariants[variantIndex].image = preview;
+      setVariants(updatedVariants);
+    }
+  };
+
+  const handleRemoveVariantImage = (variantIndex) => {
+    const existingImageName = variants[variantIndex]?.image;
+    if (
+      existingImageName &&
+      !existingImageName.startsWith('blob:') &&
+      !existingImageName.startsWith('data:') &&
+      !existingImageName.startsWith('http')
+    ) {
+      setVariantImagesToDelete((prev) => [...prev, existingImageName]);
+    }
+    setVariantImages((prev) => {
+      const updated = { ...prev };
+      if (updated[variantIndex]?.preview) {
+        URL.revokeObjectURL(updated[variantIndex].preview);
+      }
+      delete updated[variantIndex];
+      return updated;
+    });
+    const updatedVariants = [...variants];
+    updatedVariants[variantIndex].image = '';
+    setVariants(updatedVariants);
+  };
+
+  const variantImageInputRef = useRef(null);
 
   const handleAddAttribute = (variantIndex) => {
     const updatedVariants = [...variants];
@@ -509,6 +601,12 @@ const ProductForm = ({ isEdit: isEditMode }) => {
       });
     }
 
+    if (isEditMode && variantImagesToDelete.length > 0) {
+      variantImagesToDelete.forEach((imageName) => {
+        formData.append('variantImagesToDelete', imageName);
+      });
+    }
+
     if (isEditMode && existingImages.length > 0) {
       existingImages.forEach((imageName) => {
         formData.append('existingImages', imageName);
@@ -535,6 +633,10 @@ const ProductForm = ({ isEdit: isEditMode }) => {
         formData.append(`variants[${index}][stock]`, variant.stock);
         formData.append(`variants[${index}][price]`, variant.price);
         formData.append(`variants[${index}][discount]`, variant.discount);
+        const variantImage = variantImages[index];
+        if (variantImage?.file instanceof File) {
+          formData.append(`variants[${index}][image]`, variantImage.file);
+        }
         variant.attributes.forEach((attr, attrIndex) => {
           formData.append(
             `variants[${index}][attributes][${attrIndex}][option]`,
@@ -559,6 +661,7 @@ const ProductForm = ({ isEdit: isEditMode }) => {
         });
         toast.success('Product updated successfully!');
         setImagesToDelete([]);
+        setVariantImagesToDelete([]);
       } else {
         await axios.post(`${apiUrl}/products`, formData, {
           headers: { Authorization: `Bearer ${token}` },
@@ -586,6 +689,7 @@ const ProductForm = ({ isEdit: isEditMode }) => {
         setImagePreview('');
         setSelectedImages([]);
         setImagePreviews([]);
+        setVariantImages({});
         setVariants([
           {
             attributes: [{ option: '', value: '' }],
@@ -1223,6 +1327,7 @@ const ProductForm = ({ isEdit: isEditMode }) => {
                         <TableHead className="w-24">Stock *</TableHead>
                         <TableHead className="w-24">Price *</TableHead>
                         <TableHead className="w-28">Disc. Price</TableHead>
+                        <TableHead className="w-24">Image</TableHead>
                         <TableHead className="w-16">Action</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -1372,6 +1477,58 @@ const ProductForm = ({ isEdit: isEditMode }) => {
                               }}
                               className="w-20"
                             />
+                          </TableCell>
+                          <TableCell>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) =>
+                                handleVariantImageChange(index, e)
+                              }
+                              className="hidden"
+                              id={`variant-image-${index}`}
+                              ref={variantImageInputRef}
+                            />
+                            <Label
+                              htmlFor={`variant-image-${index}`}
+                              className="block cursor-pointer"
+                            >
+                              {variantImages[index]?.preview ||
+                              variant.image ? (
+                                <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-muted border border-border">
+                                  <img
+                                    src={
+                                      variantImages[index]?.preview ||
+                                      getVariantImageUrl(variant.image)
+                                    }
+                                    alt="Variant preview"
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      e.target.style.display = 'none';
+                                    }}
+                                  />
+                                  {(variantImages[index]?.file ||
+                                    variant.image) && (
+                                    <Button
+                                      type="button"
+                                      variant="destructive"
+                                      size="icon-xs"
+                                      className="absolute -top-1 -right-1 p-1"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleRemoveVariantImage(index);
+                                      }}
+                                    >
+                                      <X className="size-2.5" />
+                                    </Button>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="w-16 h-16 rounded-lg border-2 border-dashed border-muted-foreground/30 flex items-center justify-center text-muted-foreground hover:border-muted-foreground/50 transition-colors">
+                                  <Upload className="size-4" />
+                                </div>
+                              )}
+                            </Label>
                           </TableCell>
                           <TableCell>
                             <Button

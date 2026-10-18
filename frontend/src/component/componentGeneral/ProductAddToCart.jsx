@@ -1,12 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { FaPlus, FaTruck } from 'react-icons/fa6';
-import { FiMinus, FiShoppingBag, FiCheckCircle, FiInfo } from 'react-icons/fi';
+import {
+  FiMinus,
+  FiShoppingBag,
+  FiCheckCircle,
+  FiInfo,
+  FiGift,
+} from 'react-icons/fi';
 import { Truck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import useCartStore from '../../store/useCartStore.js';
 import WishlistButton from './WishlistButton.jsx';
-
 const MAX_QUANTITY = 5;
 
 const variantMatches = (variant, selection) =>
@@ -24,7 +29,7 @@ const formatPrice = (price) => {
 
 const formatAmount = (value) => Number(value).toLocaleString();
 
-const ProductAddToCart = ({ product }) => {
+const ProductAddToCart = ({ product, onVariantChange }) => {
   const [quantity, setQuantity] = useState(1);
   const [selectedOptions, setSelectedOptions] = useState({});
   const [validationMessage, setValidationMessage] = useState('');
@@ -117,6 +122,14 @@ const ProductAddToCart = ({ product }) => {
       null
     );
   }, [hasVariants, variants, optionGroups, selectedOptions]);
+
+  useEffect(() => {
+    if (onVariantChange && selectedVariant) {
+      onVariantChange(selectedVariant);
+    } else if (onVariantChange && !hasVariants) {
+      onVariantChange(null);
+    }
+  }, [selectedVariant, hasVariants, onVariantChange]);
 
   const missingOptions = useMemo(
     () =>
@@ -557,21 +570,38 @@ const ProductAddToCart = ({ product }) => {
 
       {/* Product details */}
       {(product?.productCode || product?.rewardPoints) && (
-        <div className="mt-5 grid grid-cols-1 gap-2 rounded-xl bg-gray-50 p-3 text-sm sm:grid-cols-2">
+        <div className="mt-5 grid grid-cols-1 gap-3 ">
           {product?.productCode && (
-            <div className="flex items-start justify-between gap-3">
-              <span className="text-gray-500">Product code</span>
-              <span className="text-right font-medium text-gray-800">
-                {product.productCode}
-              </span>
+            <div className="flex min-w-0 items-center gap-3 rounded-xl border border-gray-200 bg-white p-3.5 transition-colors hover:border-gray-300">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-600">
+                <FiInfo className="text-lg" />
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                  Product Code
+                </p>
+                <p className="mt-1 break-words text-sm font-semibold text-gray-900">
+                  {product.productCode}
+                </p>
+              </div>
             </div>
           )}
-          {product?.rewardPoints && (
-            <div className="flex items-start justify-between gap-3">
-              <span className="text-gray-500">Reward points</span>
-              <span className="text-right font-medium text-gray-800">
-                {product.rewardPoints} points
-              </span>
+
+          {product?.rewardPoints > 0 && (
+            <div className="flex min-w-0 items-center gap-3 rounded-xl border border-amber-200/80 bg-amber-50/60 p-3.5 transition-colors hover:border-amber-300">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
+                <FiGift className="text-lg" />
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium uppercase tracking-wide text-amber-700">
+                  Reward Points
+                </p>
+                <p className="mt-1 text-sm font-bold text-amber-900">
+                  {Number(product.rewardPoints).toLocaleString()} points
+                </p>
+              </div>
             </div>
           )}
         </div>

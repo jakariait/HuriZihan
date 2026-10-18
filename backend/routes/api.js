@@ -106,44 +106,23 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-const upload = multer({ storage, fileFilter }).fields([
-  {
-    name: 'PrimaryLogo',
-    maxCount: 1,
-  },
-  {
-    name: 'SecondaryLogo',
-    maxCount: 1,
-  },
-  {
-    name: 'Favicon',
-    maxCount: 1,
-  },
-  {
-    name: 'imgSrc',
-    maxCount: 1,
-  },
-  {
-    name: 'categoryIcon',
-    maxCount: 1,
-  },
-  {
-    name: 'categoryBanner',
-    maxCount: 1,
-  },
-  {
-    name: 'thumbnailImage',
-    maxCount: 1,
-  },
-  {
-    name: 'images',
-    maxCount: 10,
-  },
-  {
-    name: 'userImage',
-    maxCount: 1,
-  },
-]);
+const uploadFields = [
+  { name: 'PrimaryLogo', maxCount: 1 },
+  { name: 'SecondaryLogo', maxCount: 1 },
+  { name: 'Favicon', maxCount: 1 },
+  { name: 'imgSrc', maxCount: 1 },
+  { name: 'categoryIcon', maxCount: 1 },
+  { name: 'categoryBanner', maxCount: 1 },
+  { name: 'thumbnailImage', maxCount: 1 },
+  { name: 'images', maxCount: 10 },
+  { name: 'userImage', maxCount: 1 },
+];
+
+for (let i = 0; i < 20; i++) {
+  uploadFields.push({ name: `variants[${i}][image]`, maxCount: 1 });
+}
+
+const upload = multer({ storage, fileFilter }).fields(uploadFields);
 
 //   Routes for General Information
 router.get('/getGeneralInfo', generalInfoController.getGeneralInfo);
