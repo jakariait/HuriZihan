@@ -163,7 +163,17 @@ const Checkout = () => {
 
   const handleOrderSubmit = async (e) => {
     e.preventDefault();
-    setIsProcessingOrder(true); // Disable button immediately
+    setIsProcessingOrder(true);
+
+    const phoneRegex = /^01\d{9}$/;
+    if (!addressData.phone || !phoneRegex.test(addressData.phone)) {
+      showSnackbar(
+        'Mobile number must be 11 digits and start with 01',
+        'error',
+      );
+      setIsProcessingOrder(false);
+      return;
+    }
 
     const orderPayload = {
       shippingInfo: {

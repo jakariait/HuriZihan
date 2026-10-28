@@ -7,6 +7,20 @@ const AddressForm = ({ user, onAddressChange }) => {
     address: '',
     email: '',
   });
+  const [phoneError, setPhoneError] = useState('');
+
+  const validatePhone = (phone) => {
+    if (!phone) {
+      setPhoneError('Mobile number is required');
+      return false;
+    }
+    if (!/^01\d{9}$/.test(phone)) {
+      setPhoneError('Mobile number must be 11 digits and start with 01');
+      return false;
+    }
+    setPhoneError('');
+    return true;
+  };
 
   useEffect(() => {
     if (user) {
@@ -16,6 +30,7 @@ const AddressForm = ({ user, onAddressChange }) => {
         address: user.address || '',
         email: user.email || '',
       });
+      validatePhone(user.phone || '');
     }
   }, [user]);
 
@@ -38,6 +53,10 @@ const AddressForm = ({ user, onAddressChange }) => {
       const newData = { ...prev, [name]: newValue };
       return newData;
     });
+
+    if (name === 'phone') {
+      validatePhone(newValue);
+    }
   };
 
   return (
@@ -78,6 +97,7 @@ const AddressForm = ({ user, onAddressChange }) => {
           value={formData.phone}
           onChange={handleChange}
         />
+        {phoneError && <p className="text-sm text-red-600">{phoneError}</p>}
       </div>
 
       {/* Address */}
