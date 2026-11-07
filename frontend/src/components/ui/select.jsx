@@ -4,8 +4,26 @@ import { Select as SelectPrimitive } from 'radix-ui';
 
 import { cn } from '@/lib/utils';
 
-function Select({ ...props }) {
-  return <SelectPrimitive.Root data-slot="select" {...props} />;
+function Select({ onValueChange, ...props }) {
+  // Radix's hidden native `<select>` ("bubble") replays synthetic `change`
+  // events whose value it resolves against the DOM options. When items load
+  // later than the controlled value, the browser resets the missing selection
+  // to "" and we would receive onValueChange("") that wipes valid state.
+  // Ignore untrusted (synthetic) empty-value calls; real user events are trusted.
+  const guardedValueChange = (value, event) => {
+    if (value === '' && (!event || !event.nativeEvent?.isTrusted)) {
+      return;
+    }
+    onValueChange?.(value);
+  };
+
+  return (
+    <SelectPrimitive.Root
+      data-slot="select"
+      {...props}
+      {...(onValueChange ? { onValueChange: guardedValueChange } : {})}
+    />
+  );
 }
 
 function SelectGroup({ ...props }) {
