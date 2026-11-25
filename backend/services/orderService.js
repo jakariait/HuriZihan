@@ -176,8 +176,11 @@ const getAllOrders = async (filter = {}, page, limit, search = '', startDate, en
     // 1. Create count query
     const countQuery = Order.countDocuments(queryFilter);
 
-    // 2. Create find query without populates and with .lean() for performance
-    let findQuery = Order.find(queryFilter).sort({ createdAt: -1 }).lean();
+    // 2. Create find query with product details populated for order items
+    let findQuery = Order.find(queryFilter)
+      .sort({ createdAt: -1 })
+      .populate({ path: 'items.productId', select: 'name images' })
+      .lean();
 
     // 3. Apply pagination to the find query
     if (page && limit) {

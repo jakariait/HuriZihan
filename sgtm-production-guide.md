@@ -200,7 +200,7 @@ server {
     server_name metrics.$DOMAIN;
 
     location / {
-        proxy_pass http://sgtm_tagging;
+        proxy_pass http://sgtm_hurizihan_tagging;
         proxy_http_version 1.1;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
